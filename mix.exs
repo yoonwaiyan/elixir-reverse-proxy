@@ -24,7 +24,7 @@ defmodule ReverseProxy.Mixfile do
   defp deps do
     [{:plug, "~> 1.1.6"},
      {:cowboy, "~> 1.0.2"},
-     {:httpoison, "~> 0.7.1"},
+     {:httpoison, "~> 0.9.0"},
 
      {:earmark, "~> 1.0", only: :dev},
      {:ex_doc, "~> 0.14", only: :dev},
