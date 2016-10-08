@@ -38,6 +38,15 @@ defmodule ReverseProxy.Runner do
     headers = conn.req_headers
     {:ok, body, _conn} = Plug.Conn.read_body(conn)
 
+    body = case body do
+      "" ->
+        case Poison.encode(conn.body_params) do
+          {:ok, encoded} -> encoded
+          _ -> body
+        end
+      _ -> body
+    end
+
     {method, url, body, headers}
   end
 
