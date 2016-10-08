@@ -13,10 +13,14 @@ defmodule ReverseProxy.Router do
 
   for {host, upstream} <- Application.get_env(:reverse_proxy, :upstreams, []) do
     @upstream upstream
-    if host == :_ do
-      host = nil
-      @default_used true
+
+    host = case host do
+      :_ ->
+        @default_used true
+        nil
+      _ -> host
     end
+
     match _, host: host do
       ReverseProxy.call(conn, upstream: @upstream)
     end
