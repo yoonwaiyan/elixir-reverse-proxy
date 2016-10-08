@@ -7,6 +7,7 @@ defmodule ReverseProxy.Mixfile do
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     elixirc_paths: elixirc_paths(Mix.env),
      deps: deps,
      name: "ReverseProxy",
      description: description,
@@ -44,4 +45,8 @@ defmodule ReverseProxy.Mixfile do
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/slogsdon/elixir-reverse-proxy"}}
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "web", "test/support"]
+  defp elixirc_paths(_),     do: ["lib", "web"]
 end
