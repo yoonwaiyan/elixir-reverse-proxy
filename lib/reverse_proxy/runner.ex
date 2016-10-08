@@ -66,6 +66,15 @@ defmodule ReverseProxy.Runner do
         }
     end
 
+    body = case body do
+      "" ->
+        case Poison.encode(conn.body_params) do
+          {:ok, encoded} -> encoded
+          _ -> body
+        end
+      _ -> body
+    end
+
     {method, url, body, headers}
   end
 
