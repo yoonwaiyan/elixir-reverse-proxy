@@ -8,10 +8,10 @@ defmodule ReverseProxy.Mixfile do
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      elixirc_paths: elixirc_paths(Mix.env),
-     deps: deps,
+     deps: deps(),
      name: "ReverseProxy",
-     description: description,
-     package: package,
+     description: description(),
+     package: package(),
      docs: [readme: "README.md", main: "README"],
      test_coverage: [tool: ExCoveralls]]
   end
@@ -24,7 +24,7 @@ defmodule ReverseProxy.Mixfile do
   defp deps do
     [{:plug, "~> 1.1.6"},
      {:cowboy, "~> 1.0.2"},
-     {:httpoison, "~> 0.9.0"},
+     {:httpoison, "~> 0.9"},
 
      {:earmark, "~> 0.1.17", only: :docs},
      {:ex_doc, "~> 0.10.0", only: :docs},
