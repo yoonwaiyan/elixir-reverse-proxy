@@ -25,6 +25,7 @@ defmodule ReverseProxy.Mixfile do
     [{:plug, "~> 1.1.6"},
      {:cowboy, "~> 1.0.2"},
      {:httpoison, "~> 0.9"},
+     {:poison, "~> 3.0.0"},
 
      {:earmark, "~> 1.0", only: :dev},
      {:ex_doc, "~> 0.14", only: :dev},
@@ -47,6 +48,6 @@ defmodule ReverseProxy.Mixfile do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "web", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "web", "test/support", "test/fixtures"]
   defp elixirc_paths(_),     do: ["lib", "web"]
 end

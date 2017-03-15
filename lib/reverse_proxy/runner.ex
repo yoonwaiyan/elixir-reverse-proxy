@@ -15,13 +15,13 @@ defmodule ReverseProxy.Runner do
     plug.call(conn, options)
   end
 
-  @spec retreive(Conn.t, upstream, Atom.t) :: Conn.t
-  def retreive(conn, servers, client \\ HTTPoison) do
+  @spec retreive(Conn.t, upstream, Atom.t, Keyword.t) :: Conn.t
+  def retreive(conn, servers, client \\ HTTPoison, opts \\ [timeout: 5_000]) do
     server = upstream_select(servers)
     {method, url, body, headers} = prepare_request(server, conn)
 
     method
-      |> client.request(url, body, headers, timeout: 5_000)
+      |> client.request(url, body, headers, opts)
       |> process_response(conn, server)
   end
 
@@ -83,9 +83,9 @@ defmodule ReverseProxy.Runner do
     conn |> Plug.Conn.send_resp(502, "Bad Gateway")
   end
   defp process_response({:ok, response}, conn, server) do
-    conn = conn |> put_resp_headers(response.headers)
-
     conn
+      |> put_resp_headers(response.headers)
+      |> Plug.Conn.delete_resp_header("transfer-encoding")
       |> Plug.Conn.send_resp(response.status_code, response.body |> process_body(conn, server))
   end
 
