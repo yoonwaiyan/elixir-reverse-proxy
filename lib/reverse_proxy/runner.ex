@@ -30,14 +30,14 @@ defmodule ReverseProxy.Runner do
                                                   String.t,
                                                   [{String.t, String.t}]}
   defp prepare_request(server, conn) do
-    conn = conn
-            |> Conn.put_req_header(
-              "x-forwarded-for",
-              conn.remote_ip |> ip_to_string
-            )
-            |> Conn.delete_req_header(
-              "transfer-encoding"
-            )
+    #    conn = conn
+    #        |> Conn.put_req_header(
+    #          "x-forwarded-for",
+    #          conn.remote_ip |> ip_to_string
+    #       )
+    #        |> Conn.delete_req_header(
+    #          "transfer-encoding"
+    #        )
     method = conn.method |> String.downcase |> String.to_atom
     url = "#{conn.scheme}://#{server}#{conn.request_path}?#{conn.query_string}"
     headers = conn.req_headers
