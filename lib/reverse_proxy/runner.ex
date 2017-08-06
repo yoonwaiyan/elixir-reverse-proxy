@@ -40,7 +40,7 @@ defmodule ReverseProxy.Runner do
     #        )
     method = conn.method |> String.downcase |> String.to_atom
     url = "#{conn.scheme}://#{server}#{conn.request_path}?#{conn.query_string}"
-    headers = conn.req_headers
+    headers = conn.req_headers |> Enum.reject(fn {key,_} -> key == "host" end)
     body = case Conn.read_body(conn) do
       {:ok, body, _conn} ->
         body
