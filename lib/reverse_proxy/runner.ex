@@ -3,40 +3,68 @@ defmodule ReverseProxy.Runner do
   Retreives content from an upstream.
   """
 
+  alias Plug.Conn
+
   @typedoc "Representation of an upstream service."
   @type upstream :: [String.t] | {Atom.t, Keyword.t}
 
-  @spec retreive(Plug.Conn.t, upstream) :: Plug.Conn.t
+  @spec retreive(Conn.t, upstream) :: Conn.t
   def retreive(conn, upstream)
   def retreive(conn, {plug, opts}) when plug |> is_atom do
     options = plug.init(opts)
     plug.call(conn, options)
   end
 
-  @spec retreive(Plug.Conn.t, upstream, Atom.t) :: Plug.Conn.t
-  def retreive(conn, servers, client \\ HTTPoison) do
+  @spec retreive(Conn.t, upstream, Atom.t, Keyword.t) :: Conn.t
+  def retreive(conn, servers, client \\ HTTPoison, opts \\ [timeout: 5_000]) do
     server = upstream_select(servers)
     {method, url, body, headers} = prepare_request(server, conn)
 
     method
-      |> client.request(url, body, headers, timeout: 5_000)
+      |> client.request(url, body, headers, opts)
       |> process_response(conn, server)
   end
 
-  @spec prepare_request(String.t, Plug.Conn.t) :: {Atom.t,
+  @spec prepare_request(String.t, Conn.t) :: {Atom.t,
                                                   String.t,
                                                   String.t,
-                                                  [{String.t,String.t}]}
+                                                  [{String.t, String.t}]}
   defp prepare_request(server, conn) do
-    conn = conn
-            |> Plug.Conn.put_req_header(
-              "x-forwarded-for",
-              conn.remote_ip |> ip_to_string
-            )
+    #    conn = conn
+    #        |> Conn.put_req_header(
+    #          "x-forwarded-for",
+    #          conn.remote_ip |> ip_to_string
+    #       )
+    #        |> Conn.delete_req_header(
+    #          "transfer-encoding"
+    #        )
     method = conn.method |> String.downcase |> String.to_atom
     url = "#{conn.scheme}://#{server}#{conn.request_path}?#{conn.query_string}"
     headers = conn.req_headers
-    {:ok, body, _conn} = Plug.Conn.read_body(conn)
+    body = case Conn.read_body(conn) do
+      {:ok, body, _conn} ->
+        body
+      {:more, body, conn} ->
+        {:stream,
+          Stream.resource(
+            fn -> {body, conn} end,
+            fn
+              {body, conn} ->
+                {[body], conn}
+              nil ->
+                {:halt, nil}
+              conn ->
+                case Conn.read_body(conn) do
+                  {:ok, body, _conn} ->
+                    {[body], nil}
+                  {:more, body, conn} ->
+                    {[body], conn}
+                end
+            end,
+            fn _ -> nil end
+          )
+        }
+    end
 
     body = case body do
       "" ->
@@ -55,13 +83,13 @@ defmodule ReverseProxy.Runner do
     conn |> Plug.Conn.send_resp(502, "Bad Gateway")
   end
   defp process_response({:ok, response}, conn, server) do
-    conn = conn |> put_resp_headers(response.headers)
-
     conn
+      |> put_resp_headers(response.headers)
+      |> Plug.Conn.delete_resp_header("transfer-encoding")
       |> Plug.Conn.send_resp(response.status_code, response.body |> process_body(conn, server))
   end
 
-  @spec put_resp_headers(Plug.Conn.t, [{String.t, String.t}]) :: Plug.Conn.t
+  @spec put_resp_headers(Conn.t, [{String.t, String.t}]) :: Conn.t
   defp put_resp_headers(conn, []), do: conn
   defp put_resp_headers(conn, [{header = "Location", value}|rest]) do
     [host, port] = conn |> get_host() |> String.split(":")
@@ -76,11 +104,11 @@ defmodule ReverseProxy.Runner do
   end
   defp put_resp_headers(conn, [{header, value}|rest]) do
     conn
-      |> Plug.Conn.put_resp_header(header |> String.downcase, value)
+      |> Conn.put_resp_header(header |> String.downcase, value)
       |> put_resp_headers(rest)
   end
 
-  defp ip_to_string({a,b,c,d}), do: "#{a}.#{b}.#{c}.#{d}"
+  defp ip_to_string({a, b, c, d}), do: "#{a}.#{b}.#{c}.#{d}"
 
   defp upstream_select(servers) do
     servers |> hd

@@ -3,7 +3,7 @@ defmodule ReverseProxy.Mixfile do
 
   def project do
     [app: :reverse_proxy,
-     version: "0.1.0",
+     version: "0.3.1",
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
@@ -25,18 +25,19 @@ defmodule ReverseProxy.Mixfile do
     [{:plug, "~> 1.1.6"},
      {:cowboy, "~> 1.0.2"},
      {:httpoison, "~> 0.9"},
+     {:poison, "~> 3.0.0"},
 
-     {:earmark, "~> 0.1.17", only: :docs},
-     {:ex_doc, "~> 0.10.0", only: :docs},
+     {:earmark, "~> 1.0", only: :dev},
+     {:ex_doc, "~> 0.14", only: :dev},
 
-     {:dogma, "~> 0.0", only: :test},
-     {:excoveralls, "~> 0.3.11", only: :test},
-     {:dialyze, "~> 0.2.0", only: :test}]
+     {:credo, "~> 0.5", only: [:dev, :test]},
+     {:excoveralls, "~> 0.5", only: :test},
+     {:dialyze, "~> 0.2", only: :test}]
   end
 
   defp description do
     """
-    A Plug based, reverse proxy server.
+    A Plug based reverse proxy server.
     """
   end
 
@@ -47,6 +48,6 @@ defmodule ReverseProxy.Mixfile do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "web", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "web", "test/support", "test/fixtures"]
   defp elixirc_paths(_),     do: ["lib", "web"]
 end
