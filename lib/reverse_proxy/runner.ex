@@ -6,29 +6,28 @@ defmodule ReverseProxy.Runner do
   alias Plug.Conn
 
   @typedoc "Representation of an upstream service."
-  @type upstream :: [String.t] | {Atom.t, Keyword.t}
+  @type upstream :: [String.t()] | {Atom.t(), Keyword.t()}
 
-  @spec retreive(Conn.t, upstream) :: Conn.t
+  @spec retreive(Conn.t(), upstream) :: Conn.t()
   def retreive(conn, upstream)
+
   def retreive(conn, {plug, opts}) when plug |> is_atom do
     options = plug.init(opts)
     plug.call(conn, options)
   end
 
-  @spec retreive(Conn.t, upstream, Atom.t, Keyword.t) :: Conn.t
+  @spec retreive(Conn.t(), upstream, Atom.t(), Keyword.t()) :: Conn.t()
   def retreive(conn, servers, client \\ HTTPoison, opts \\ [timeout: 5_000]) do
     server = upstream_select(servers)
     {method, url, body, headers} = prepare_request(server, conn)
 
     method
-      |> client.request(url, body, headers, opts)
-      |> process_response(conn, server)
+    |> client.request(url, body, headers, opts)
+    |> process_response(conn, server)
   end
 
-  @spec prepare_request(String.t, Conn.t) :: {Atom.t,
-                                                  String.t,
-                                                  String.t,
-                                                  [{String.t, String.t}]}
+  @spec prepare_request(String.t(), Conn.t()) ::
+          {Atom.t(), String.t(), String.t(), [{String.t(), String.t()}]}
   defp prepare_request(server, conn) do
     #    conn = conn
     #        |> Conn.put_req_header(
@@ -38,74 +37,89 @@ defmodule ReverseProxy.Runner do
     #        |> Conn.delete_req_header(
     #          "transfer-encoding"
     #        )
-    method = conn.method |> String.downcase |> String.to_atom
+    method = conn.method |> String.downcase() |> String.to_atom()
     url = "#{conn.scheme}://#{server}#{conn.request_path}?#{conn.query_string}"
-    headers = conn.req_headers |> Enum.reject(fn {key,_} -> key == "host" end)
-    body = case Conn.read_body(conn) do
-      {:ok, body, _conn} ->
-        body
-      {:more, body, conn} ->
-        {:stream,
-          Stream.resource(
-            fn -> {body, conn} end,
-            fn
-              {body, conn} ->
-                {[body], conn}
-              nil ->
-                {:halt, nil}
-              conn ->
-                case Conn.read_body(conn) do
-                  {:ok, body, _conn} ->
-                    {[body], nil}
-                  {:more, body, conn} ->
-                    {[body], conn}
-                end
-            end,
-            fn _ -> nil end
-          )
-        }
-    end
+    headers = conn.req_headers |> Enum.reject(fn {key, _} -> key == "host" end)
 
-    body = case body do
-      "" ->
-        case Poison.encode(conn.body_params) do
-          {:ok, encoded} -> encoded
-          _ -> body
-        end
-      _ -> body
-    end
+    body =
+      case Conn.read_body(conn) do
+        {:ok, body, _conn} ->
+          body
+
+        {:more, body, conn} ->
+          {:stream,
+           Stream.resource(
+             fn -> {body, conn} end,
+             fn
+               {body, conn} ->
+                 {[body], conn}
+
+               nil ->
+                 {:halt, nil}
+
+               conn ->
+                 case Conn.read_body(conn) do
+                   {:ok, body, _conn} ->
+                     {[body], nil}
+
+                   {:more, body, conn} ->
+                     {[body], conn}
+                 end
+             end,
+             fn _ -> nil end
+           )}
+      end
+
+    body =
+      case body do
+        "" ->
+          case Poison.encode(conn.body_params) do
+            {:ok, encoded} -> encoded
+            _ -> body
+          end
+
+        _ ->
+          body
+      end
 
     {method, url, body, headers}
   end
 
-  @spec process_response({Atom.t, Map.t}, Plug.Conn.t, String.t) :: Plug.Conn.t
+  @spec process_response({Atom.t(), Map.t()}, Plug.Conn.t(), String.t()) :: Plug.Conn.t()
   defp process_response({:error, _}, conn, _server) do
     conn |> Plug.Conn.send_resp(502, "Bad Gateway")
   end
+
   defp process_response({:ok, response}, conn, server) do
     conn
-      |> put_resp_headers(response.headers)
-      |> Plug.Conn.delete_resp_header("transfer-encoding")
-      |> Plug.Conn.send_resp(response.status_code, response.body |> process_body(conn, server))
+    |> put_resp_headers(response.headers)
+    |> Plug.Conn.delete_resp_header("transfer-encoding")
+    |> Plug.Conn.send_resp(response.status_code, response.body |> process_body(conn, server))
   end
 
-  @spec put_resp_headers(Conn.t, [{String.t, String.t}]) :: Conn.t
+  @spec put_resp_headers(Conn.t(), [{String.t(), String.t()}]) :: Conn.t()
   defp put_resp_headers(conn, []), do: conn
-  defp put_resp_headers(conn, [{header = "Location", value}|rest]) do
+
+  defp put_resp_headers(conn, [{header = "Location", value} | rest] = headers) do
+    IO.inspect(headers, label: "headers")
+
     [host, port] = conn |> get_host() |> String.split(":")
-    value = URI.parse(value)
-          |> Map.put(:host, host)
-          |> Map.put(:port, port |> String.to_integer)
-          |> URI.to_string
+
+    value =
+      URI.parse(value)
+      |> Map.put(:host, host)
+      |> Map.put(:port, port |> String.to_integer())
+      |> URI.to_string()
 
     conn
-      |> Plug.Conn.put_resp_header(header |> String.downcase, value)
-      |> put_resp_headers(rest)
+    |> Plug.Conn.put_resp_header(header |> String.downcase(), value)
+    |> put_resp_headers(rest)
   end
-  defp put_resp_headers(conn, [{header, value}|rest]) do
+
+  defp put_resp_headers(conn, [{header, value} | rest]) do
     conn
-      |> Conn.put_resp_header(header |> String.downcase, value)
-      |> put_resp_headers(rest)
+    |> Conn.put_resp_header(header |> String.downcase(), value)
+    |> put_resp_headers(rest)
   end
 
   defp ip_to_string({a, b, c, d}), do: "#{a}.#{b}.#{c}.#{d}"
@@ -119,6 +133,8 @@ defmodule ReverseProxy.Runner do
   end
 
   defp get_host(conn) do
+    IO.inspect(conn, label: "get_host > conn")
+
     case conn |> Plug.Conn.get_req_header("host") do
       [head | _] -> head
       _ -> ""
