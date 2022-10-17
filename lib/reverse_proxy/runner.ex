@@ -101,15 +101,16 @@ defmodule ReverseProxy.Runner do
   defp put_resp_headers(conn, []), do: conn
 
   defp put_resp_headers(conn, [{header = "Location", value} | rest] = headers) do
-    IO.inspect(headers, label: "headers")
-
-    [host, port] = conn |> get_host() |> String.split(":")
+    IO.puts("~~~~~~~~~~~~")
+    IO.puts(value)
 
     value =
       URI.parse(value)
-      |> Map.put(:host, host)
-      |> Map.put(:port, port |> String.to_integer())
+      |> Map.put(:host, get_host(conn))
+      |> Map.put(:port, conn.port)
       |> URI.to_string()
+
+    IO.inspect(value, label: "value")
 
     conn
     |> Plug.Conn.put_resp_header(header |> String.downcase(), value)
@@ -133,8 +134,6 @@ defmodule ReverseProxy.Runner do
   end
 
   defp get_host(conn) do
-    IO.inspect(conn, label: "get_host > conn")
-
     case conn |> Plug.Conn.get_req_header("host") do
       [head | _] -> head
       _ -> ""
